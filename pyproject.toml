@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "star_to_md"
+version = "0.1.0"
+description = "Convert various document formats to Markdown using AI assistance"
+requires-python = ">=3.8"
+dependencies = [
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "aiohttp>=3.8.0",
+    "python-dotenv>=1.0.0",
+    "pypdf>=3.0.0",
+    "python-magic>=0.4.27",
+    "pandoc>=2.3",
+    "ell-ai>=0.0.14"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0"
+]
+
+[project.scripts]
+star-to-md = "star_to_md.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/star_to_md"]
+
