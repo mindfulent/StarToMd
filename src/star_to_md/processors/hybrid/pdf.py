@@ -5,6 +5,10 @@ from star_to_md.services.analyzer import PDFAnalyzer
 from star_to_md.services.chunker import PDFChunker
 from star_to_md.services.enhancer import ContentEnhancer
 from star_to_md.utils.errors import ProcessorError
+from star_to_md.utils.pandoc import is_pandoc_available, get_pandoc_path
+import tempfile
+import subprocess
+import ell
 
 class PdfProcessor(BaseProcessor):
     """PDF processor implementation"""
@@ -66,3 +70,40 @@ class PdfProcessor(BaseProcessor):
         if not result.content:
             return False
         return result.confidence >= self.settings.confidence_threshold 
+    
+    async def _pandoc_convert(self, chunk: str) -> str:
+        """Convert chunk using pandoc if available"""
+        if not is_pandoc_available():
+            # Fall back to direct LLM conversion if pandoc isn't available
+            return await self._direct_convert(chunk)
+        
+        pandoc_path = get_pandoc_path()
+        try:
+            # Write chunk to temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt') as temp_in:
+                temp_in.write(chunk)
+                temp_in.flush()
+                
+                # Run pandoc conversion
+                result = subprocess.run(
+                    [pandoc_path, temp_in.name, '-f', 'plain', '-t', 'markdown'],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                return result.stdout
+        except subprocess.SubprocessError as e:
+            # Log error and fall back to direct conversion
+            self.metrics.add_error(
+                "pandoc_conversion",
+                f"Pandoc conversion failed: {str(e)}"
+            )
+            return await self._direct_convert(chunk)
+    
+    @ell.simple(model="gpt-4o-mini")
+    async def _direct_convert(self, chunk: str) -> str:
+        """Direct conversion using LLM when pandoc isn't available"""
+        return [
+            ell.system("Convert the following text to clean markdown format."),
+            ell.user(chunk)
+        ]
